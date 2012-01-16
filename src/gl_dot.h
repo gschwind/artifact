@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Benoit Gschwind <gschwind@gnu-log.net>
+ * Copyright 2012 Benoit Gschwind <gschwind@gnu-log.net>
  *
  * This file is part of artifact.
  *
@@ -17,30 +17,48 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GL_OBJECT_HPP_
-#define GL_OBJECT_HPP_
+#ifndef GL_DOT_H_
+#define GL_DOT_H_
 
-class gl_object {
-public:
-	gl_object();
-	virtual ~gl_object();
-	virtual void gl_init();
-	virtual void gl_render();
-	virtual void gl_release();
-};
+#include <GL/glx.h>
+#include "gl_object.h"
+
 
 namespace gl {
 
-class object {
-public:
-	object() { }
-	virtual ~object() { };
-	virtual void init() = 0;
-	virtual void render() = 0;
-	virtual void release() = 0;
-};
+class dot : public object {
+	double _x, _y;
 
+	dot(dot const &);
+	dot & operator=(dot const &);
+public:
+
+	dot(double x, double y) : _x(x), _y(y) {
+
+	}
+
+	~dot() {
+
+	}
+
+	void init() {
+
+	}
+
+	void render() {
+		glBegin(GL_POINT);
+		glColor3d(1.0, 0.0, 0.0);
+		glVertex3d(_x, _y, 0.0);
+		glEnd();
+	}
+
+	void release() {
+
+	}
+
+};
 
 }
 
-#endif /* GL_OBJECT_HPP_ */
+
+#endif /* GL_DOT_H_ */

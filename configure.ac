@@ -23,6 +23,7 @@ PKG_CHECK_MODULES([ILUT], [ILUT >= 1.7.7])
 PKG_CHECK_MODULES([GTK], [gtk+-2.0 >= 2.16.6])
 PKG_CHECK_MODULES([GTKGL], [gtkglext-1.0 >= 0.23])
 PKG_CHECK_MODULES([SDL], [sdl >= 1.2.13])
+PKG_CHECK_MODULES([FT], [freetype2 >= 14.0.0])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h])

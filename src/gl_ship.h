@@ -45,11 +45,14 @@ struct ship_t {
 	double orientation;
 	GLuint texture;
 
+	std::string name;
+
 	bool is_selected;
 
-	ship_t(double x, double y, double orientation) :
+	ship_t(double x, double y, double orientation, std::string & name) :
 			x(x), y(y), orientation(orientation) {
 		is_selected = false;
+		this->name = name;
 	}
 
 	void render() {

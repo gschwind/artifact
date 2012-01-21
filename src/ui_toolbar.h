@@ -17,48 +17,44 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GL_DOT_H_
-#define GL_DOT_H_
+#ifndef UI_TOOLBAR_H_
+#define UI_TOOLBAR_H_
 
-#include <GL/glx.h>
-#include "gl_object.h"
-
+#include "gl_utils.h"
 
 namespace gl {
 
-class dot : public object {
-	double _x, _y;
-
-	dot(dot const &);
-	dot & operator=(dot const &);
-public:
-
-	dot(double x, double y) : _x(x), _y(y) {
-
-	}
-
-	~dot() {
-
-	}
-
-	void init() {
-
+struct toolbar {
+	static GLuint texture;
+	static double const width = 410;
+	static double const height = 40;
+	toolbar() {
+		texture = gl_utils::load_texture("data/bottom_toolbar.png");
 	}
 
 	void render() {
-		glBegin(GL_POINT);
-		glColor3d(1.0, 1.0, 1.0);
-		glVertex3d(_x, _y, 0.0);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glBegin(GL_QUADS);
+		glTexCoord2d(1., 1.);
+		glColor3d(1., 1., 1.);
+		glVertex3d(0.0, 0.0, 0.);
+		glTexCoord2d(0., 1.);
+		glVertex3d(width, 0.0, 0.);
+		glTexCoord2d(0., 0.);
+		glVertex3d(width, height, 0.);
+		glTexCoord2d(1., 0.);
+		glVertex3d(0.0, height, 0.);
 		glEnd();
-	}
-
-	void release() {
-
 	}
 
 };
 
+GLuint toolbar::texture = 0;
+
 }
 
 
-#endif /* GL_DOT_H_ */
+
+
+#endif /* UI_TOOLBAR_H_ */

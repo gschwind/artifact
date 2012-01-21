@@ -23,12 +23,14 @@
 #include <IL/il.h>
 #include <IL/ilut.h>
 #include <GL/gl.h>
+#include "freetype_font.h"
 
 class gl_utils {
 public:
 	gl_utils();
 	virtual ~gl_utils();
     static GLuint load_texture(char const * name);
+    static gl::freetype_t * load_font(char const * name, unsigned int size);
 
 };
 

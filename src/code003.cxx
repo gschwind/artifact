@@ -35,6 +35,9 @@
 #include "gl_dot.h"
 #include "freetype_font.h"
 #include "gl_ship.h"
+#include "ui_toolbar.h"
+#include "ui_player_status.h"
+#include "ui_target_status.h"
 
 Display * dpy;
 Window root;
@@ -53,6 +56,11 @@ std::list<gl::ship_t *> enemy;
 
 timespec last_frame;
 timespec cur_frame;
+
+gl::toolbar * toolbar;
+
+gl::status_player * left_status_player;
+gl::status_target * right_status_target;
 
 struct ship_t {
 	double x, y;
@@ -213,11 +221,13 @@ void buttonrelease(XButtonEvent & ev) {
 		}
 
 		ship.selected = 0;
+		right_status_target->target = 0;
 		//printf("i: %f\n", min_d);
 		if (sqrt(min_d) < 12.0) {
 			ship.foos = (long long int) i;
 			i->is_selected = true;
 			ship.selected = i;
+			right_status_target->target = i;
 		}
 
 	}
@@ -369,9 +379,9 @@ void DrawAQuad() {
 	char buf[512];
 	snprintf(buf, 511, "%f %f %f %f", ship.x, ship.y, ship.orientation,
 			elapsed_time);
-	f->print(0.0, 0.0, buf);
+	f->print(10.0, 560.0, buf);
 	snprintf(buf, 511, "%f %f %lld", ship.foox, ship.fooy, ship.foos);
-	f->print(0.0, 20.0, buf);
+	f->print(10.0, 580.0, buf);
 
 	glPopMatrix();
 
@@ -382,44 +392,33 @@ void DrawAQuad() {
 	glLoadIdentity();
 	gluLookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0., 0., 1., 0.);
 
-	glDisable(GL_TEXTURE_2D);
-	glDisable(GL_BLEND);
 
-	glBegin(GL_QUADS);
-	glColor3d(1.0, 1.0, 0.0);
-	glVertex3d(300.0, 30.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 30.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 35.0, 0.0);
-	glVertex3d(300.0, 35.0, 0.0);
-	glColor3d(0.0, 1.0, 0.0);
-	glVertex3d(300.0, 40.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 40.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 45.0, 0.0);
-	glVertex3d(300.0, 45.0, 0.0);
-	glColor3d(0.0, 0.0, 1.0);
-	glVertex3d(300.0, 50.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 50.0, 0.0);
-	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 55.0, 0.0);
-	glVertex3d(300.0, 55.0, 0.0);
-	glEnd();
 
-	glColor3d(1.0, 1.0, 1.0);
-	glPushMatrix();
-	glTranslated(100.0, 50.0, 0.0);
-	f->print2("Shield");
-	glTranslated(0.0, -11.0, 0.0);
-	f->print2("Armor");
-	glTranslated(0.0, -11.0, 0.0);
-	f->print2("Hull");
+//	glColor3d(1.0, 1.0, 1.0);
+//	glPushMatrix();
+//	glTranslated(100.0, 50.0, 0.0);
+//	f->print2("Shield");
+//	glTranslated(0.0, -11.0, 0.0);
+//	f->print2("Armor");
+//	glTranslated(0.0, -11.0, 0.0);
+//	f->print2("Hull");
 
 	glPopMatrix();
 
-	if (ship.selected) {
-		glPushMatrix();
-		glTranslated(20.0, 500.0, 0.0);
-		ship.selected->render_ui();
-		glPopMatrix();
-	}
+	glPushMatrix();
+	glTranslated(200.0, 0.0, 0.0);
+	toolbar->render();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslated(200.0, 100.0, 0.0);
+	left_status_player->render();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslated(450.0, 100.0, 0.0);
+	right_status_target->render();
+	glPopMatrix();
 
 	glDisable(GL_TEXTURE_2D);
 
@@ -490,15 +489,35 @@ int main(int argc, char *argv[]) {
 	}
 
 	ship.texture = gl_utils::load_texture("data/mytest.png");
+	toolbar = new gl::toolbar();
+	left_status_player = new gl::status_player();
+	right_status_target = new gl::status_target();
+
+	right_status_target->max_shield = 100.0;
+	right_status_target->max_armor = 100;
+	right_status_target->max_hull = 100;
+	right_status_target->shield = 100.0;
+	right_status_target->armor = 100;
+	right_status_target->hull = 100;
+
+	left_status_player->max_shield = 100.0;
+	left_status_player->max_armor = 100;
+	left_status_player->max_hull = 100;
+	left_status_player->shield = 100.0;
+	left_status_player->armor = 100;
+	left_status_player->hull = 100;
 
 	for (int i = 0; i < 10; ++i) {
+		char buf[100];
+		snprintf(buf, 99, "enemy%03d", i);
+		std::string t = buf;
 		enemy.push_front(
-				new gl::ship_t(rand() % 1000 - 500, rand() % 1000 - 500,
-						(rand() % 3600) / 10.0));
+				new gl::ship_t((double)(rand() % 1000 - 500), (double)(rand() % 1000 - 500),
+						(double)(rand() % 3600) / 10.0, t));
 		enemy.front()->texture = ship.texture;
 	}
 
-	f = new gl::freetype_t("data/DejaVuSans.ttf", 11);
+	f = gl_utils::load_font("data/DejaVuSans.ttf", 11);
 
 	clock_gettime(4, &cur_frame);
 

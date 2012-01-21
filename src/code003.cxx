@@ -1,3 +1,22 @@
+/*
+ * Copyright 2012 Benoit Gschwind <gschwind@gnu-log.net>
+ *
+ * This file is part of artifact.
+ *
+ * artifact is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * artifact is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <cmath>
 #include<stdio.h>
 #include<stdlib.h>
@@ -9,11 +28,13 @@
 
 #include <list>
 
+#include <sys/types.h>
 #include <time.h>
 
 #include "font.h"
 #include "gl_dot.h"
 #include "freetype_font.h"
+#include "gl_ship.h"
 
 Display * dpy;
 Window root;
@@ -27,6 +48,8 @@ XWindowAttributes gwa;
 XEvent xev;
 
 std::list<gl::object *> world;
+
+std::list<gl::ship_t *> enemy;
 
 timespec last_frame;
 timespec cur_frame;
@@ -42,10 +65,29 @@ struct ship_t {
 	bool right_click;
 	int xpos, ypos;
 
+	double max_shield;
+	double max_armor;
+	double max_hull;
+
+	double shield;
+	double armor;
+	double hull;
+
+	double zoom;
+
+	GLuint texture;
+
 	ship_t() :
 			x(0.0), y(0.0), orientation(0.0), xo(0.0), move_forward(false), move_backward(
-					false), move_left(false), move_right(false) {
+					false), move_left(false), move_right(false), zoom(10.0) {
+		max_shield = 100.0;
+		shield = 100.0;
 	}
+
+	double foox, fooy;
+	long long int foos;
+
+	gl::ship_t * selected;
 
 };
 
@@ -122,10 +164,62 @@ void buttonrelease(XButtonEvent & ev) {
 		ship.orientation -= 1.0 * move;
 		int ymove = ev.y - ship.ypos;
 		ship.xo -= 1.0 * ymove;
-		if(ship.xo < 0)
+		if (ship.xo < 0)
 			ship.xo = 0;
-		if(ship.xo > 90.0)
+		if (ship.xo > 90.0)
 			ship.xo = 90.0;
+	} else if (ev.button == Button4) {
+		ship.zoom += 1.0;
+		if (ship.zoom > 10.0) {
+			ship.zoom = 10.0;
+		}
+	} else if (ev.button == Button5) {
+		ship.zoom -= 1.0;
+		if (ship.zoom < 1.0) {
+			ship.zoom = 1.0;
+		}
+	} else if (ev.button == Button1) {
+
+		double x = ev.x - 400.0;
+		double y = 300.0 - ev.y;
+
+		// x => x * cos(r) + y * sin(r)
+		// y => x * sin(r) + y * cos(r)
+
+		ship.foox = x * cos(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
+				+ y * sin(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
+				+ ship.x;
+		ship.fooy = x * -sin(-ship.orientation * M_PI / 180.0) * 10.0
+				/ ship.zoom
+				+ y * cos(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
+				+ ship.y;
+
+		gl::ship_t * i = 0;
+		double min_d = 1.0e20;
+
+		std::list<gl::ship_t *>::iterator iter_x = enemy.begin();
+		while (iter_x != enemy.end()) {
+			//printf("(%f,%f) (%f,%f)\n", (*iter_x)->x, (*iter_x)->y, ship.foox,
+			//		ship.fooy);
+			double xx = (*iter_x)->x - ship.foox;
+			double yy = (*iter_x)->y - ship.fooy;
+			double d = xx * xx + yy * yy;
+			if (d < min_d) {
+				min_d = d;
+				i = (*iter_x);
+			}
+			(*iter_x)->is_selected = false;
+			++iter_x;
+		}
+
+		ship.selected = 0;
+		//printf("i: %f\n", min_d);
+		if (sqrt(min_d) < 12.0) {
+			ship.foos = (long long int) i;
+			i->is_selected = true;
+			ship.selected = i;
+		}
+
 	}
 }
 
@@ -136,9 +230,9 @@ void motionnotify(XMotionEvent & ev) {
 
 		int ymove = ev.y - ship.ypos;
 		ship.xo -= 1.0 * ymove;
-		if(ship.xo < 0)
+		if (ship.xo < 0)
 			ship.xo = 0;
-		if(ship.xo > 90.0)
+		if (ship.xo > 90.0)
 			ship.xo = 90.0;
 
 		ship.xpos = ev.x;
@@ -149,27 +243,39 @@ void motionnotify(XMotionEvent & ev) {
 void DrawAQuad() {
 	last_frame.tv_sec = cur_frame.tv_sec;
 	last_frame.tv_nsec = cur_frame.tv_nsec;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &cur_frame);
+	clock_gettime(4, &cur_frame);
 
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(-400., 400., -300., 300., -100., 100.);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(0., 0., 1.0, 0., 0., 0., 0., 1., 0.);
 
-	glDisable(GL_TEXTURE_2D);
+	glPushMatrix();
+	glScaled(ship.zoom / 10.0, ship.zoom / 10.0, 1.0);
+	//glRotated(ship.xo, 1.0, 0.0, 0.0);
 
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+	//glDisable(GL_COLOR);
+	glBindTexture(GL_TEXTURE_2D, ship.texture);
 	glBegin(GL_QUADS);
-	glColor3f(1., 0., 0.);
-	glVertex3f(-.75, -.75, 0.);
-	glColor3f(0., 1., 0.);
-	glVertex3f(.75, -.75, 0.);
-	glColor3f(0., 0., 1.);
-	glVertex3f(.75, .75, 0.);
-	glColor3f(1., 1., 0.);
-	glVertex3f(-.75, .75, 0.);
+	glTexCoord2d(1., 1.);
+	glColor3f(1., 1., 1.);
+	glVertex3f(-16.0, -16., 0.);
+	glTexCoord2d(0., 1.);
+	glVertex3f(16.0, -16.0, 0.);
+	glTexCoord2d(0., 0.);
+	glVertex3f(16.0, 16.0, 0.);
+	glTexCoord2d(1., 0.);
+	glVertex3f(-16.0, 16.0, 0.);
 	glEnd();
+
+	glPopMatrix();
 
 	/* diff time */
 	/* curtime = cur_frame.tv_sec + cur_frame.tv_nsec * 1e-9
@@ -189,42 +295,46 @@ void DrawAQuad() {
 	double elapsed_time = (diff.tv_nsec * 1.0e-9) + diff.tv_sec;
 
 	if (ship.move_forward) {
-		ship.y += 20.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
-		ship.x += 20.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
+		ship.y += 100.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
+		ship.x -= 100.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
+
 	}
 
 	if (ship.move_backward) {
-		ship.y -= 20.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
-		ship.x -= 20.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
+		ship.y -= 100.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
+		ship.x += 100.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
+
 	}
 
 	if (ship.move_left) {
 		if (ship.right_click) {
-			ship.y += 20.0 * elapsed_time
-					* cos(ship.orientation * M_PI / 180.0);
-			ship.x -= 20.0 * elapsed_time
+			ship.y -= 100.0 * elapsed_time
 					* sin(ship.orientation * M_PI / 180.0);
+			ship.x -= 100.0 * elapsed_time
+					* cos(ship.orientation * M_PI / 180.0);
 		} else {
-			ship.orientation += 30.0 * elapsed_time;
+			ship.orientation += 50.0 * elapsed_time;
 		}
 	}
 
 	if (ship.move_right) {
 		if (ship.right_click) {
-			ship.y -= 20.0 * elapsed_time
-					* cos(ship.orientation * M_PI / 180.0);
-			ship.x += 20.0 * elapsed_time
+			ship.y += 100.0 * elapsed_time
 					* sin(ship.orientation * M_PI / 180.0);
+			ship.x += 100.0 * elapsed_time
+					* cos(ship.orientation * M_PI / 180.0);
 		} else {
-			ship.orientation -= 30.0 * elapsed_time;
+			ship.orientation -= 50.0 * elapsed_time;
 		}
 	}
 
-	glPushMatrix();
-	glRotated(ship.xo, 1.0, 0.0, 0.0);
-	glRotated(-ship.orientation + 90.0, 0.0, 0.0, 1.0);
-	glTranslated(-ship.x, -ship.y, 0.0);
+	glDisable(GL_TEXTURE_2D);
 
+	glPushMatrix();
+	glScaled(ship.zoom / 10.0, ship.zoom / 10.0, 1.0);
+	//glRotated(ship.xo, 1.0, 0.0, 0.0);
+	glRotated(-ship.orientation, 0.0, 0.0, 1.0);
+	glTranslated(-ship.x, -ship.y, 0.0);
 
 	std::list<gl::object *>::iterator iter = world.begin();
 	while (iter != world.end()) {
@@ -232,11 +342,99 @@ void DrawAQuad() {
 		++iter;
 	}
 
+	glBegin(GL_LINES);
+	glColor3d(0.0, 0.0, 1.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(10.0, 0.0, 0.0);
+	glColor3d(0.0, 1.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 10.0, 0.0);
+	glColor3d(1.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 10.0);
+	glEnd();
+
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_BLEND);
+
+	std::list<gl::ship_t *>::iterator iter_x = enemy.begin();
+	while (iter_x != enemy.end()) {
+		(*iter_x)->render();
+		++iter_x;
+	}
+
 	glPopMatrix();
 
+	glPushMatrix();
 	char buf[512];
-	snprintf(buf, 31, "%f %f %f", ship.x, ship.y, elapsed_time);
+	snprintf(buf, 511, "%f %f %f %f", ship.x, ship.y, ship.orientation,
+			elapsed_time);
 	f->print(0.0, 0.0, buf);
+	snprintf(buf, 511, "%f %f %lld", ship.foox, ship.fooy, ship.foos);
+	f->print(0.0, 20.0, buf);
+
+	glPopMatrix();
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0., 800., 0., 600., -100., 100.);
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0., 0., 1., 0.);
+
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_BLEND);
+
+	glBegin(GL_QUADS);
+	glColor3d(1.0, 1.0, 0.0);
+	glVertex3d(300.0, 30.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 30.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 35.0, 0.0);
+	glVertex3d(300.0, 35.0, 0.0);
+	glColor3d(0.0, 1.0, 0.0);
+	glVertex3d(300.0, 40.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 40.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 45.0, 0.0);
+	glVertex3d(300.0, 45.0, 0.0);
+	glColor3d(0.0, 0.0, 1.0);
+	glVertex3d(300.0, 50.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 50.0, 0.0);
+	glVertex3d((ship.shield / ship.max_shield) * 200.0 + 300.0, 55.0, 0.0);
+	glVertex3d(300.0, 55.0, 0.0);
+	glEnd();
+
+	glColor3d(1.0, 1.0, 1.0);
+	glPushMatrix();
+	glTranslated(100.0, 50.0, 0.0);
+	f->print2("Shield");
+	glTranslated(0.0, -11.0, 0.0);
+	f->print2("Armor");
+	glTranslated(0.0, -11.0, 0.0);
+	f->print2("Hull");
+
+	glPopMatrix();
+
+	if (ship.selected) {
+		glPushMatrix();
+		glTranslated(20.0, 500.0, 0.0);
+		ship.selected->render_ui();
+		glPopMatrix();
+	}
+
+	glDisable(GL_TEXTURE_2D);
+
+	glBegin(GL_LINES);
+	glColor3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(10.0, 0.0, 0.0);
+	glColor3d(0.0, 1.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 10.0, 0.0);
+	glColor3d(1.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 10.0);
+	glEnd();
+
 	//glFlush();
 }
 
@@ -269,7 +467,7 @@ int main(int argc, char *argv[]) {
 	swa.colormap = cmap;
 	swa.event_mask = MyEventMask;
 
-	win = XCreateWindow(dpy, root, 0, 0, 600, 600, 0, vi->depth, InputOutput,
+	win = XCreateWindow(dpy, root, 0, 0, 800, 600, 0, vi->depth, InputOutput,
 			vi->visual, CWColormap | CWEventMask, &swa);
 
 	XMapWindow(dpy, win);
@@ -288,21 +486,23 @@ int main(int argc, char *argv[]) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (int i = 0; i < 1000; ++i) {
-		world.push_front(new gl::dot(rand() % 200 - 100, rand() % 200 - 100));
+		world.push_front(new gl::dot(rand() % 1000 - 500, rand() % 1000 - 500));
 	}
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho(-100., 100., -100., 100., -100., 100.);
+	ship.texture = gl_utils::load_texture("data/mytest.png");
 
-	f = new gl::freetype_t("/usr/share/fonts/corefonts/arial.ttf", 8);
+	for (int i = 0; i < 10; ++i) {
+		enemy.push_front(
+				new gl::ship_t(rand() % 1000 - 500, rand() % 1000 - 500,
+						(rand() % 3600) / 10.0));
+		enemy.front()->texture = ship.texture;
+	}
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &cur_frame);
+	f = new gl::freetype_t("data/DejaVuSans.ttf", 11);
 
+	clock_gettime(4, &cur_frame);
 
 	while (1) {
-		//DrawAQuad();
-
 
 		DrawAQuad();
 		glXSwapBuffers(dpy, win);
@@ -322,7 +522,6 @@ int main(int argc, char *argv[]) {
 				motionnotify(xev.xmotion);
 			}
 		}
-
 
 		//printf("looop\n");
 		//XGetWindowAttributes(dpy, win, &gwa);

@@ -46,8 +46,14 @@ void ship_t::render(double elapsed_time) {
 	glPushMatrix();
 	glTranslated(x, y, 0.0);
 	glPushMatrix();
-	glTranslated(0.0, 10.0, 0.0);
+	if (is_selected) {
+		glColor3f(1.0, 0.0, 0.0);
+	} else {
+		glColor3f(1.0, 1.0, 1.0);
+	}
+	double l = font->length(name.c_str());
 	glRotated(global.ship.orientation, 0.0, 0.0, 1.0);
+	glTranslated(-l/2.0, 20.0, 0.0);
 	font->print2(name.c_str());
 	glPopMatrix();
 

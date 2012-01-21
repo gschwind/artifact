@@ -42,6 +42,7 @@ public:
 	double h;
 	GLuint * textures;
 	GLuint list_base;
+	unsigned int * glyph_length;
 
 	inline int next_p2(int a) {
 		int rval = 1;
@@ -52,7 +53,7 @@ public:
 	}
 
 	void make_dlist(FT_Face face, char ch, GLuint list_base,
-			GLuint * tex_base) {
+			GLuint * tex_base, unsigned int * gl) {
 
 		//The first thing we do is get FreeType to render our character
 		//into a bitmap.  This actually requires a couple of FreeType commands:
@@ -157,6 +158,7 @@ public:
 		glEnd();
 		glPopMatrix();
 		glTranslatef(face->glyph->advance.x >> 6, 0, 0);
+		gl[ch] = face->glyph->advance.x;
 
 		//increment the raster position as if we were a bitmap font.
 		//(only needed if you want to calculate text length)
@@ -169,6 +171,7 @@ public:
 	freetype_t(const char * fname, unsigned int h) {
 		//Allocate some memory to store the texture ids.
 		textures = new GLuint[128];
+		glyph_length = new unsigned int[128];
 
 		this->h = h;
 
@@ -202,7 +205,7 @@ public:
 
 		//This is where we actually create each of the fonts display lists.
 		for (unsigned char i = 0; i < 128; i++)
-			make_dlist(face, i, list_base, textures);
+			make_dlist(face, i, list_base, textures, glyph_length);
 
 		//We don't need the face information now that the display
 		//lists have been created, so we free the assosiated resources.
@@ -396,6 +399,15 @@ public:
 		}
 
 		glPopAttrib();
+	}
+
+
+	unsigned int length(const char * msg) {
+		unsigned int l = 0;
+		while(*msg != 0) {
+			l += glyph_length[*msg++] >> 6;
+		}
+		return l;
 	}
 
 };

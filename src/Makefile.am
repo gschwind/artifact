@@ -12,6 +12,6 @@ code002_SOURCES = code002.cxx data_file.cxx data_value.cxx
 code002_CPPFLAGS = -g -lfl @GTKGL_CFLAGS@ @IL_CFLAGS@ @ILU_CFLAGS@ @ILUT_CFLAGS@ @GTK_CFLAGS@ @SDL_CFLAGS@ @FT_CFLAGS@
 code002_LDADD = @GTKGL_LIBS@ @GTK_LIBS@ @SDL_LIBS@ @IL_LIBS@ @ILU_LIBS@ @ILUT_LIBS@ @FT_LIBS@
 
-code003_SOURCES = code003.cxx gl_utils.cxx
+code003_SOURCES = code003.cxx global.cxx ui_player_status.cxx ui_target_status.cxx gl_shoot_anim.cxx ui_toolbar.cxx gl_ship.cxx gl_utils.cxx
 code003_CPPFLAGS = -g -lfl @GTKGL_CFLAGS@ @IL_CFLAGS@ @ILU_CFLAGS@ @ILUT_CFLAGS@ @GTK_CFLAGS@ @SDL_CFLAGS@ @FT_CFLAGS@
 code003_LDADD = @GTKGL_LIBS@ @GTK_LIBS@ @SDL_LIBS@ @IL_LIBS@ @ILU_LIBS@ @ILUT_LIBS@ @FT_LIBS@

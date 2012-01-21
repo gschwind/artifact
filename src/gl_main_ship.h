@@ -17,14 +17,25 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_PLAYER_STATUS_H_
-#define UI_PLAYER_STATUS_H_
+#ifndef GL_MAIN_SHIP_H_
+#define GL_MAIN_SHIP_H_
 
-#include "gl_utils.h"
+#include "gl_ship.h"
 
 namespace gl {
 
-struct status_player {
+struct main_ship_t {
+	double x, y;
+	double orientation;
+	double xo;
+	bool move_forward;
+	bool move_backward;
+	bool move_left;
+	bool move_right;
+	bool right_click;
+	bool left_click;
+	int xpos, ypos;
+
 	double max_shield;
 	double max_armor;
 	double max_hull;
@@ -33,18 +44,34 @@ struct status_player {
 	double armor;
 	double hull;
 
-	std::string name;
+	double zoom;
 
-	static double const width = 167;
-	static double const height = 63;
+	GLuint texture;
 
-	static GLuint texture;
+	main_ship_t() {
+		x = 0.0;
+		y = 0.0;
+		orientation = 0.0;
+		xo = 0.0;
+		move_forward = false;
+		move_backward = false;
+		move_left = false;
+		move_right = false;
+		zoom = 10.0;
+		max_shield = 100.0;
+		shield = 100.0;
+		right_click = false;
+		left_click = false;
+		texture = 0;
+	}
 
-	status_player();
-	void render();
+	double foox, fooy;
+	long long int foos;
+
+	gl::ship_t * selected;
 
 };
 
 }
 
-#endif /* UI_PLAYER_STATUS_H_ */
+#endif /* GL_MAIN_SHIP_H_ */

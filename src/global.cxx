@@ -17,34 +17,7 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_PLAYER_STATUS_H_
-#define UI_PLAYER_STATUS_H_
+#include "global.h"
 
-#include "gl_utils.h"
+global_t global;
 
-namespace gl {
-
-struct status_player {
-	double max_shield;
-	double max_armor;
-	double max_hull;
-
-	double shield;
-	double armor;
-	double hull;
-
-	std::string name;
-
-	static double const width = 167;
-	static double const height = 63;
-
-	static GLuint texture;
-
-	status_player();
-	void render();
-
-};
-
-}
-
-#endif /* UI_PLAYER_STATUS_H_ */

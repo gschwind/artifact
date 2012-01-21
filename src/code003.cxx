@@ -18,19 +18,21 @@
  */
 
 #include <cmath>
-#include<stdio.h>
-#include<stdlib.h>
-#include<X11/X.h>
-#include<X11/Xlib.h>
-#include<GL/gl.h>
-#include<GL/glx.h>
-#include<GL/glu.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <X11/X.h>
+#include <X11/Xlib.h>
+#include <GL/gl.h>
+#include <GL/glx.h>
+#include <GL/glu.h>
 
 #include <list>
 
 #include <sys/types.h>
 #include <time.h>
 
+#include "global.h"
+#include "gl_main_ship.h"
 #include "font.h"
 #include "gl_dot.h"
 #include "freetype_font.h"
@@ -38,6 +40,7 @@
 #include "ui_toolbar.h"
 #include "ui_player_status.h"
 #include "ui_target_status.h"
+#include "gl_shoot_anim.h"
 
 Display * dpy;
 Window root;
@@ -50,59 +53,6 @@ GLXContext glc;
 XWindowAttributes gwa;
 XEvent xev;
 
-std::list<gl::object *> world;
-
-std::list<gl::ship_t *> enemy;
-
-timespec last_frame;
-timespec cur_frame;
-
-gl::toolbar * toolbar;
-
-gl::status_player * left_status_player;
-gl::status_target * right_status_target;
-
-struct ship_t {
-	double x, y;
-	double orientation;
-	double xo;
-	bool move_forward;
-	bool move_backward;
-	bool move_left;
-	bool move_right;
-	bool right_click;
-	int xpos, ypos;
-
-	double max_shield;
-	double max_armor;
-	double max_hull;
-
-	double shield;
-	double armor;
-	double hull;
-
-	double zoom;
-
-	GLuint texture;
-
-	ship_t() :
-			x(0.0), y(0.0), orientation(0.0), xo(0.0), move_forward(false), move_backward(
-					false), move_left(false), move_right(false), zoom(10.0) {
-		max_shield = 100.0;
-		shield = 100.0;
-	}
-
-	double foox, fooy;
-	long long int foos;
-
-	gl::ship_t * selected;
-
-};
-
-ship_t ship;
-
-gl::freetype_t * f;
-
 void keypress(XKeyEvent * ev) {
 	//char *s = XKeysymToString(XKeycodeToKeysym(dpy, ev->keycode, 0));
 	//printf("%s\n", s);
@@ -110,14 +60,14 @@ void keypress(XKeyEvent * ev) {
 	KeySym k = XKeycodeToKeysym(dpy, ev->keycode, 0);
 
 	if (k == XK_w) {
-		ship.move_forward = true;
+		global.ship.move_forward = true;
 		printf("press\n");
 	} else if (k == XK_s) {
-		ship.move_backward = true;
+		global.ship.move_backward = true;
 	} else if (k == XK_a) {
-		ship.move_left = true;
+		global.ship.move_left = true;
 	} else if (k == XK_d) {
-		ship.move_right = true;
+		global.ship.move_right = true;
 	} else if (k == XK_Escape) {
 		glXMakeCurrent(dpy, None, NULL);
 		glXDestroyContext(dpy, glc);
@@ -146,29 +96,34 @@ void keyrelease(XKeyEvent * ev) {
 
 	KeySym k = XKeycodeToKeysym(dpy, ev->keycode, 0);
 	if (k == XK_w) {
-		ship.move_forward = false;
+		global.ship.move_forward = false;
 		printf("release\n");
 	} else if (k == XK_s) {
-		ship.move_backward = false;
+		global.ship.move_backward = false;
 	} else if (k == XK_a) {
-		ship.move_left = false;
+		global.ship.move_left = false;
 	} else if (k == XK_d) {
-		ship.move_right = false;
+		global.ship.move_right = false;
 	} else if (k == XK_1) {
-		if(ship.selected) {
-			if(ship.selected->shield > 0.0) {
-			ship.selected->shield -= 10.0;
-			} else if (ship.selected->armor > 0.0) {
-				ship.selected->armor -= 10.0;
-			} else if (ship.selected->hull > 0.0) {
-				ship.selected->hull -= 10.0;
+		if (global.ship.selected) {
+			if (global.ship.selected->shield > 0.0) {
+				global.ship.selected->shield -= 10.0;
+			} else if (global.ship.selected->armor > 0.0) {
+				global.ship.selected->armor -= 10.0;
+			} else if (global.ship.selected->hull > 0.0) {
+				global.ship.selected->hull -= 10.0;
 			}
 
-			if(ship.selected->hull <= 0) {
-				enemy.remove(ship.selected);
-				delete ship.selected;
-				ship.selected = 0;
-				right_status_target->target = 0;
+			global.world.push_back(
+					new gl::shoot_anim_t(global.ship.x, global.ship.y,
+							global.ship.selected->x, global.ship.selected->y));
+
+			if (global.ship.selected->hull <= 0) {
+				global.world.remove(global.ship.selected);
+				global.enemy.remove(global.ship.selected);
+				delete global.ship.selected;
+				global.ship.selected = 0;
+				global.right_status_target->target = 0;
 			}
 		}
 	} else if (k == XK_2) {
@@ -189,63 +144,19 @@ void keyrelease(XKeyEvent * ev) {
 
 	} else if (k == XK_0) {
 
-	}
-}
-
-void buttonpress(XButtonEvent & ev) {
-	if (ev.button == Button3) {
-		ship.right_click = true;
-		ship.xpos = ev.x;
-		ship.ypos = ev.y;
-	}
-}
-
-void buttonrelease(XButtonEvent & ev) {
-	if (ev.button == Button3) {
-		ship.right_click = false;
-		int move = ev.x - ship.xpos;
-		ship.orientation -= 1.0 * move;
-		int ymove = ev.y - ship.ypos;
-		ship.xo -= 1.0 * ymove;
-		if (ship.xo < 0)
-			ship.xo = 0;
-		if (ship.xo > 90.0)
-			ship.xo = 90.0;
-	} else if (ev.button == Button4) {
-		ship.zoom += 1.0;
-		if (ship.zoom > 10.0) {
-			ship.zoom = 10.0;
-		}
-	} else if (ev.button == Button5) {
-		ship.zoom -= 1.0;
-		if (ship.zoom < 1.0) {
-			ship.zoom = 1.0;
-		}
-	} else if (ev.button == Button1) {
-
-		double x = ev.x - 400.0;
-		double y = 300.0 - ev.y;
-
-		// x => x * cos(r) + y * sin(r)
-		// y => x * sin(r) + y * cos(r)
-
-		ship.foox = x * cos(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
-				+ y * sin(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
-				+ ship.x;
-		ship.fooy = x * -sin(-ship.orientation * M_PI / 180.0) * 10.0
-				/ ship.zoom
-				+ y * cos(-ship.orientation * M_PI / 180.0) * 10.0 / ship.zoom
-				+ ship.y;
+	} else if (k == XK_Tab) {
+		double x = global.ship.x;
+		double y = global.ship.y;
 
 		gl::ship_t * i = 0;
 		double min_d = 1.0e20;
 
-		std::list<gl::ship_t *>::iterator iter_x = enemy.begin();
-		while (iter_x != enemy.end()) {
+		std::list<gl::ship_t *>::iterator iter_x = global.enemy.begin();
+		while (iter_x != global.enemy.end()) {
 			//printf("(%f,%f) (%f,%f)\n", (*iter_x)->x, (*iter_x)->y, ship.foox,
 			//		ship.fooy);
-			double xx = (*iter_x)->x - ship.foox;
-			double yy = (*iter_x)->y - ship.fooy;
+			double xx = (*iter_x)->x - x;
+			double yy = (*iter_x)->y - y;
 			double d = xx * xx + yy * yy;
 			if (d < min_d) {
 				min_d = d;
@@ -255,44 +166,159 @@ void buttonrelease(XButtonEvent & ev) {
 			++iter_x;
 		}
 
-		ship.selected = 0;
-		right_status_target->target = 0;
+		global.ship.selected = 0;
+		global.right_status_target->target = 0;
 		//printf("i: %f\n", min_d);
-		if (sqrt(min_d) < 12.0) {
-			ship.foos = (long long int) i;
+		if (sqrt(min_d) < 250.0) {
+			global.ship.foos = (long long int) i;
 			i->is_selected = true;
-			ship.selected = i;
-			right_status_target->target = i;
+			global.ship.selected = i;
+			global.right_status_target->target = i;
+		}
+
+	}
+}
+
+void buttonpress(XButtonEvent & ev) {
+	if (ev.button == Button3) {
+		global.ship.right_click = true;
+		global.ship.xpos = ev.x;
+		global.ship.ypos = ev.y;
+	} else if (ev.button == Button1) {
+		global.ship.left_click = true;
+	}
+}
+
+void buttonrelease(XButtonEvent & ev) {
+	if (ev.button == Button3) {
+		global.ship.right_click = false;
+		int move = ev.x - global.ship.xpos;
+		global.ship.orientation -= 1.0 * move;
+		int ymove = ev.y - global.ship.ypos;
+		global.ship.xo -= 1.0 * ymove;
+		if (global.ship.xo < 0)
+			global.ship.xo = 0;
+		if (global.ship.xo > 90.0)
+			global.ship.xo = 90.0;
+	} else if (ev.button == Button4) {
+		global.ship.zoom += 1.0;
+		if (global.ship.zoom > 10.0) {
+			global.ship.zoom = 10.0;
+		}
+	} else if (ev.button == Button5) {
+		global.ship.zoom -= 1.0;
+		if (global.ship.zoom < 1.0) {
+			global.ship.zoom = 1.0;
+		}
+	} else if (ev.button == Button1) {
+		global.ship.left_click = false;
+
+		if (!global.ship.right_click) {
+			double x = ev.x - 400.0;
+			double y = 300.0 - ev.y;
+
+			// x => x * cos(r) + y * sin(r)
+			// y => x * sin(r) + y * cos(r)
+
+			global.ship.foox = x * cos(-global.ship.orientation * M_PI / 180.0)
+					* 10.0 / global.ship.zoom
+					+ y * sin(-global.ship.orientation * M_PI / 180.0) * 10.0
+							/ global.ship.zoom + global.ship.x;
+			global.ship.fooy = x * -sin(-global.ship.orientation * M_PI / 180.0)
+					* 10.0 / global.ship.zoom
+					+ y * cos(-global.ship.orientation * M_PI / 180.0) * 10.0
+							/ global.ship.zoom + global.ship.y;
+
+			gl::ship_t * i = 0;
+			double min_d = 1.0e20;
+
+			std::list<gl::ship_t *>::iterator iter_x = global.enemy.begin();
+			while (iter_x != global.enemy.end()) {
+				//printf("(%f,%f) (%f,%f)\n", (*iter_x)->x, (*iter_x)->y, ship.foox,
+				//		ship.fooy);
+				double xx = (*iter_x)->x - global.ship.foox;
+				double yy = (*iter_x)->y - global.ship.fooy;
+				double d = xx * xx + yy * yy;
+				if (d < min_d) {
+					min_d = d;
+					i = (*iter_x);
+				}
+				(*iter_x)->is_selected = false;
+				++iter_x;
+			}
+
+			global.ship.selected = 0;
+			global.right_status_target->target = 0;
+			//printf("i: %f\n", min_d);
+			if (sqrt(min_d) < 12.0) {
+				global.ship.foos = (long long int) i;
+				i->is_selected = true;
+				global.ship.selected = i;
+				global.right_status_target->target = i;
+			}
+
 		}
 
 	}
 }
 
 void motionnotify(XMotionEvent & ev) {
-	if (ship.right_click) {
-		int move = ev.x - ship.xpos;
-		ship.orientation -= 1.0 * move;
+	if (global.ship.right_click) {
+		int move = ev.x - global.ship.xpos;
+		global.ship.orientation -= 1.0 * move;
 
-		int ymove = ev.y - ship.ypos;
-		ship.xo -= 1.0 * ymove;
-		if (ship.xo < 0)
-			ship.xo = 0;
-		if (ship.xo > 90.0)
-			ship.xo = 90.0;
+		int ymove = ev.y - global.ship.ypos;
+		global.ship.xo -= 1.0 * ymove;
+		if (global.ship.xo < 0)
+			global.ship.xo = 0;
+		if (global.ship.xo > 90.0)
+			global.ship.xo = 90.0;
 
-		ship.xpos = ev.x;
-		ship.ypos = ev.y;
+		global.ship.xpos = ev.x;
+		global.ship.ypos = ev.y;
 	}
 }
 
-void DrawAQuad() {
-	last_frame.tv_sec = cur_frame.tv_sec;
-	last_frame.tv_nsec = cur_frame.tv_nsec;
-	clock_gettime(4, &cur_frame);
+void draw_circle(double r, double step) {
+	glBegin(GL_LINES);
+	glColor3d(0.4, 0.4, 0.4);
+	int i;
+	double rstep = M_PI * 2.0 / step;
+	for (i = 0; i < step; i += 2) {
+		glVertex3d(cos(i * rstep) * r, sin(i * rstep) * r, 0.0);
+		glVertex3d(cos((i + 1) * rstep) * r, sin((i + 1) * rstep) * r, 0.0);
+	}
+	glEnd();
+}
+
+void render_axes() {
+	glBegin(GL_LINES);
+	glColor3d(0.0, 0.0, 1.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(10.0, 0.0, 0.0);
+	glColor3d(0.0, 1.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 10.0, 0.0);
+	glColor3d(1.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 0.0);
+	glVertex3d(0.0, 0.0, 10.0);
+	glEnd();
+}
+
+void render() {
+	global.last_frame.tv_sec = global.cur_frame.tv_sec;
+	global.last_frame.tv_nsec = global.cur_frame.tv_nsec;
+	clock_gettime(4, &global.cur_frame);
+	timespec diff;
+	diff.tv_sec = global.cur_frame.tv_sec - global.last_frame.tv_sec;
+	diff.tv_nsec = global.cur_frame.tv_nsec - global.last_frame.tv_nsec;
+
+	double elapsed_time = (diff.tv_nsec * 1.0e-9) + diff.tv_sec;
 
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	/* world render */
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(-400., 400., -300., 300., -100., 100.);
@@ -301,13 +327,13 @@ void DrawAQuad() {
 	gluLookAt(0., 0., 1.0, 0., 0., 0., 0., 1., 0.);
 
 	glPushMatrix();
-	glScaled(ship.zoom / 10.0, ship.zoom / 10.0, 1.0);
+	glScaled(global.ship.zoom / 10.0, global.ship.zoom / 10.0, 1.0);
 	//glRotated(ship.xo, 1.0, 0.0, 0.0);
 
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
 	//glDisable(GL_COLOR);
-	glBindTexture(GL_TEXTURE_2D, ship.texture);
+	glBindTexture(GL_TEXTURE_2D, global.ship.texture);
 	glBegin(GL_QUADS);
 	glTexCoord2d(1., 1.);
 	glColor3f(1., 1., 1.);
@@ -320,114 +346,93 @@ void DrawAQuad() {
 	glVertex3f(-16.0, 16.0, 0.);
 	glEnd();
 
+	{
+		glDisable(GL_TEXTURE_2D);
+		draw_circle(250.0, 100.0);
+	}
+
 	glPopMatrix();
 
-	/* diff time */
-	/* curtime = cur_frame.tv_sec + cur_frame.tv_nsec * 1e-9
-	 * lasttime = last_frame.tv_sec + last_frame.tv_nsec * 1e-9
-	 *
-	 * elapsed = cur - last;
-	 * elapsed = (cur_frame.tv_sec + cur_frame.tv_nsec * 1e-9) - (last_frame.tv_sec + last_frame.tv_nsec * 1e-9)
-	 * elapsed = (cur_frame.tv_sec - last_frame.tv_sec) + (cur_frame.tv_nsec - last_frame.tv_nsec) * 1e-9
-	 * if there is smal among of time elapsed between this two time elapsed time will be accurate.
-	 *
-	 * the following method is accurate for small elapsed time (double is about 10e-15 accuracy between 0 and 1)
-	 *
-	 */
-	timespec diff;
-	diff.tv_sec = cur_frame.tv_sec - last_frame.tv_sec;
-	diff.tv_nsec = cur_frame.tv_nsec - last_frame.tv_nsec;
-	double elapsed_time = (diff.tv_nsec * 1.0e-9) + diff.tv_sec;
-
-	if (ship.move_forward) {
-		ship.y += 100.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
-		ship.x -= 100.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
+	if (global.ship.move_forward
+			|| (global.ship.left_click && global.ship.right_click)) {
+		global.ship.y += 100.0 * elapsed_time
+				* cos(global.ship.orientation * M_PI / 180.0);
+		global.ship.x -= 100.0 * elapsed_time
+				* sin(global.ship.orientation * M_PI / 180.0);
 
 	}
 
-	if (ship.move_backward) {
-		ship.y -= 100.0 * elapsed_time * cos(ship.orientation * M_PI / 180.0);
-		ship.x += 100.0 * elapsed_time * sin(ship.orientation * M_PI / 180.0);
+	if (global.ship.move_backward) {
+		global.ship.y -= 100.0 * elapsed_time
+				* cos(global.ship.orientation * M_PI / 180.0);
+		global.ship.x += 100.0 * elapsed_time
+				* sin(global.ship.orientation * M_PI / 180.0);
 
 	}
 
-	if (ship.move_left) {
-		if (ship.right_click) {
-			ship.y -= 100.0 * elapsed_time
-					* sin(ship.orientation * M_PI / 180.0);
-			ship.x -= 100.0 * elapsed_time
-					* cos(ship.orientation * M_PI / 180.0);
+	if (global.ship.move_left) {
+		if (global.ship.right_click) {
+			global.ship.y -= 100.0 * elapsed_time
+					* sin(global.ship.orientation * M_PI / 180.0);
+			global.ship.x -= 100.0 * elapsed_time
+					* cos(global.ship.orientation * M_PI / 180.0);
 		} else {
-			ship.orientation += 50.0 * elapsed_time;
+			global.ship.orientation += 50.0 * elapsed_time;
 		}
 	}
 
-	if (ship.move_right) {
-		if (ship.right_click) {
-			ship.y += 100.0 * elapsed_time
-					* sin(ship.orientation * M_PI / 180.0);
-			ship.x += 100.0 * elapsed_time
-					* cos(ship.orientation * M_PI / 180.0);
+	if (global.ship.move_right) {
+		if (global.ship.right_click) {
+			global.ship.y += 100.0 * elapsed_time
+					* sin(global.ship.orientation * M_PI / 180.0);
+			global.ship.x += 100.0 * elapsed_time
+					* cos(global.ship.orientation * M_PI / 180.0);
 		} else {
-			ship.orientation -= 50.0 * elapsed_time;
+			global.ship.orientation -= 50.0 * elapsed_time;
 		}
 	}
 
 	glDisable(GL_TEXTURE_2D);
 
 	glPushMatrix();
-	glScaled(ship.zoom / 10.0, ship.zoom / 10.0, 1.0);
+	glScaled(global.ship.zoom / 10.0, global.ship.zoom / 10.0, 1.0);
 	//glRotated(ship.xo, 1.0, 0.0, 0.0);
-	glRotated(-ship.orientation, 0.0, 0.0, 1.0);
-	glTranslated(-ship.x, -ship.y, 0.0);
+	glRotated(-global.ship.orientation, 0.0, 0.0, 1.0);
+	glTranslated(-global.ship.x, -global.ship.y, 0.0);
 
-	std::list<gl::object *>::iterator iter = world.begin();
-	while (iter != world.end()) {
-		(*iter)->render();
+	std::list<gl::renderable_i *>::iterator iter = global.world.begin();
+	while (iter != global.world.end()) {
+		(*iter)->render(elapsed_time);
 		++iter;
 	}
 
-	glBegin(GL_LINES);
-	glColor3d(0.0, 0.0, 1.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(10.0, 0.0, 0.0);
-	glColor3d(0.0, 1.0, 0.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(0.0, 10.0, 0.0);
-	glColor3d(1.0, 0.0, 0.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(0.0, 0.0, 10.0);
-	glEnd();
+	render_axes();
 
-	glEnable(GL_TEXTURE_2D);
-	glEnable(GL_BLEND);
-
-	std::list<gl::ship_t *>::iterator iter_x = enemy.begin();
-	while (iter_x != enemy.end()) {
-		(*iter_x)->render();
-		++iter_x;
-	}
+	/* trick to resolve overloaded function */
+	bool (*func)(gl::renderable_i *) = &gl::renderable_i::need_destroy;
+	global.world.remove_if(func);
 
 	glPopMatrix();
 
 	glPushMatrix();
+	glColor3d(1.0, 1.0, 1.0);
 	char buf[512];
-	snprintf(buf, 511, "%f %f %f %f", ship.x, ship.y, ship.orientation,
-			elapsed_time);
-	f->print(10.0, 560.0, buf);
-	snprintf(buf, 511, "%f %f %lld", ship.foox, ship.fooy, ship.foos);
-	f->print(10.0, 580.0, buf);
+	snprintf(buf, 511, "%f %f %f %f", global.ship.x, global.ship.y,
+			global.ship.orientation, elapsed_time);
+	global.f->print(10.0, 560.0, buf);
+	snprintf(buf, 511, "%f %f %lld", global.ship.foox, global.ship.fooy,
+			global.ship.foos);
+	global.f->print(10.0, 580.0, buf);
 
 	glPopMatrix();
 
+	/* UI render */
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0., 800., 0., 600., -100., 100.);
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	gluLookAt(0.0, 0.0, 1.0, 0.0, 0.0, 0., 0., 1., 0.);
-
-
 
 //	glColor3d(1.0, 1.0, 1.0);
 //	glPushMatrix();
@@ -442,34 +447,19 @@ void DrawAQuad() {
 
 	glPushMatrix();
 	glTranslated(200.0, 0.0, 0.0);
-	toolbar->render();
+	global.toolbar->render();
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslated(200.0, 100.0, 0.0);
-	left_status_player->render();
+	global.left_status_player->render();
 	glPopMatrix();
 
 	glPushMatrix();
 	glTranslated(450.0, 100.0, 0.0);
-	right_status_target->render();
+	global.right_status_target->render();
 	glPopMatrix();
 
-	glDisable(GL_TEXTURE_2D);
-
-	glBegin(GL_LINES);
-	glColor3d(0.0, 0.0, 0.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(10.0, 0.0, 0.0);
-	glColor3d(0.0, 1.0, 0.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(0.0, 10.0, 0.0);
-	glColor3d(1.0, 0.0, 0.0);
-	glVertex3d(0.0, 0.0, 0.0);
-	glVertex3d(0.0, 0.0, 10.0);
-	glEnd();
-
-	//glFlush();
 }
 
 #define MyEventMask (ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask)
@@ -520,45 +510,48 @@ int main(int argc, char *argv[]) {
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (int i = 0; i < 1000; ++i) {
-		world.push_front(new gl::dot(rand() % 1000 - 500, rand() % 1000 - 500));
+		global.world.push_front(
+				new gl::dot(rand() % 1000 - 500, rand() % 1000 - 500));
 	}
 
-	ship.texture = gl_utils::load_texture("data/mytest.png");
-	toolbar = new gl::toolbar();
-	left_status_player = new gl::status_player();
-	right_status_target = new gl::status_target();
+	global.ship.texture = gl_utils::load_texture("data/mytest.png");
+	global.toolbar = new gl::toolbar();
+	global.left_status_player = new gl::status_player();
+	global.right_status_target = new gl::status_target();
 
-	right_status_target->max_shield = 100.0;
-	right_status_target->max_armor = 100;
-	right_status_target->max_hull = 100;
-	right_status_target->shield = 100.0;
-	right_status_target->armor = 100;
-	right_status_target->hull = 100;
+	global.right_status_target->max_shield = 100.0;
+	global.right_status_target->max_armor = 100;
+	global.right_status_target->max_hull = 100;
+	global.right_status_target->shield = 100.0;
+	global.right_status_target->armor = 100;
+	global.right_status_target->hull = 100;
 
-	left_status_player->max_shield = 100.0;
-	left_status_player->max_armor = 100;
-	left_status_player->max_hull = 100;
-	left_status_player->shield = 100.0;
-	left_status_player->armor = 100;
-	left_status_player->hull = 100;
+	global.left_status_player->max_shield = 100.0;
+	global.left_status_player->max_armor = 100;
+	global.left_status_player->max_hull = 100;
+	global.left_status_player->shield = 100.0;
+	global.left_status_player->armor = 100;
+	global.left_status_player->hull = 100;
 
 	for (int i = 0; i < 10; ++i) {
 		char buf[100];
 		snprintf(buf, 99, "enemy%03d", i);
 		std::string t = buf;
-		enemy.push_front(
-				new gl::ship_t((double)(rand() % 1000 - 500), (double)(rand() % 1000 - 500),
-						(double)(rand() % 3600) / 10.0, t));
-		enemy.front()->texture = ship.texture;
+		global.enemy.push_front(
+				new gl::ship_t((double) (rand() % 1000 - 500),
+						(double) (rand() % 1000 - 500),
+						(double) (rand() % 3600) / 10.0, t));
+		global.enemy.front()->texture = global.ship.texture;
+		global.world.push_front(global.enemy.front());
 	}
 
-	f = gl_utils::load_font("data/DejaVuSans.ttf", 11);
+	global.f = gl_utils::load_font("data/DejaVuSans.ttf", 11);
 
-	clock_gettime(4, &cur_frame);
+	clock_gettime(4, &global.cur_frame);
 
 	while (1) {
 
-		DrawAQuad();
+		render();
 		glXSwapBuffers(dpy, win);
 
 		while (XCheckMaskEvent(dpy, ~NoEventMask, &xev)) {
@@ -580,7 +573,7 @@ int main(int argc, char *argv[]) {
 		//printf("looop\n");
 		//XGetWindowAttributes(dpy, win, &gwa);
 		//glViewport(0, 0, gwa.width, gwa.height);
-		//DrawAQuad();
+		//render();
 		//glXSwapBuffers(dpy, win);
 
 	} /* this closes while(1) { */

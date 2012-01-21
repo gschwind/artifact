@@ -17,34 +17,30 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_PLAYER_STATUS_H_
-#define UI_PLAYER_STATUS_H_
-
-#include "gl_utils.h"
+#include <GL/gl.h>
+#include "gl_shoot_anim.h"
 
 namespace gl {
 
-struct status_player {
-	double max_shield;
-	double max_armor;
-	double max_hull;
+shoot_anim_t::shoot_anim_t(double x0, double y0, double x1, double y1) :
+		x0(x0), x1(x1), y0(y0), y1(y1) {
+	time_left = 1.0;
+}
 
-	double shield;
-	double armor;
-	double hull;
+void shoot_anim_t::render(double elapsed_time) {
+	time_left -= elapsed_time;
+	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_BLEND);
+	glBegin(GL_LINES);
+	glColor3d(0.0, time_left, 0.0);
+	glVertex3d(x0, y0, 0.0);
+	glVertex3d(x1, y1, 0.0);
+	glEnd();
+}
 
-	std::string name;
-
-	static double const width = 167;
-	static double const height = 63;
-
-	static GLuint texture;
-
-	status_player();
-	void render();
-
-};
+bool shoot_anim_t::need_destroy() {
+	return (time_left < 0.0);
+}
 
 }
 
-#endif /* UI_PLAYER_STATUS_H_ */

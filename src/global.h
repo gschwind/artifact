@@ -17,34 +17,36 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_PLAYER_STATUS_H_
-#define UI_PLAYER_STATUS_H_
+#ifndef GLOBAL_H_
+#define GLOBAL_H_
 
-#include "gl_utils.h"
+#include <ctime>
+#include <list>
 
-namespace gl {
+#include "gl_renderable.h"
+#include "gl_ship.h"
+#include "gl_main_ship.h"
+#include "ui_toolbar.h"
+#include "ui_player_status.h"
+#include "ui_target_status.h"
 
-struct status_player {
-	double max_shield;
-	double max_armor;
-	double max_hull;
+struct global_t {
+	std::list<gl::renderable_i *> world;
+	std::list<gl::ship_t *> enemy;
+	timespec last_frame;
+	timespec cur_frame;
+	gl::toolbar * toolbar;
+	gl::status_player * left_status_player;
+	gl::status_target * right_status_target;
+	gl::main_ship_t ship;
+	gl::freetype_t * f;
 
-	double shield;
-	double armor;
-	double hull;
+	global_t() {
 
-	std::string name;
-
-	static double const width = 167;
-	static double const height = 63;
-
-	static GLuint texture;
-
-	status_player();
-	void render();
+	}
 
 };
 
-}
+extern global_t global;
 
-#endif /* UI_PLAYER_STATUS_H_ */
+#endif /* GLOBAL_H_ */

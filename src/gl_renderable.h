@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Benoit Gschwind <gschwind@gnu-log.net>
+ * Copyright 2010 Benoit Gschwind <gschwind@gnu-log.net>
  *
  * This file is part of artifact.
  *
@@ -17,34 +17,21 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UI_PLAYER_STATUS_H_
-#define UI_PLAYER_STATUS_H_
-
-#include "gl_utils.h"
+#ifndef GL_RENDERABLE_H_
+#define GL_RENDERABLE_H_
 
 namespace gl {
 
-struct status_player {
-	double max_shield;
-	double max_armor;
-	double max_hull;
+struct renderable_i {
+	virtual ~renderable_i() { }
+	virtual void render(double elapsed_time) = 0;
+	virtual bool need_destroy() = 0;
 
-	double shield;
-	double armor;
-	double hull;
-
-	std::string name;
-
-	static double const width = 167;
-	static double const height = 63;
-
-	static GLuint texture;
-
-	status_player();
-	void render();
-
+	static bool need_destroy(renderable_i * value) {
+		return value->need_destroy();
+	}
 };
 
 }
 
-#endif /* UI_PLAYER_STATUS_H_ */
+#endif /* GL_RENDERABLE_H_ */

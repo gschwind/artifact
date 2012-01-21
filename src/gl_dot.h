@@ -21,12 +21,12 @@
 #define GL_DOT_H_
 
 #include <GL/glx.h>
-#include "gl_object.h"
+#include "gl_renderable.h"
 
 
 namespace gl {
 
-class dot : public object {
+class dot : public renderable_i {
 	double _x, _y;
 
 	dot(dot const &);
@@ -45,12 +45,16 @@ public:
 
 	}
 
-	void render() {
+	void render(double elapsed_time) {
+		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_BLEND);
 		glBegin(GL_POINT);
 		glColor3d(1.0, 1.0, 1.0);
 		glVertex3d(_x, _y, 0.0);
 		glEnd();
 	}
+
+	bool need_destroy() { return false; }
 
 	void release() {
 

@@ -154,6 +154,41 @@ void keyrelease(XKeyEvent * ev) {
 		ship.move_left = false;
 	} else if (k == XK_d) {
 		ship.move_right = false;
+	} else if (k == XK_1) {
+		if(ship.selected) {
+			if(ship.selected->shield > 0.0) {
+			ship.selected->shield -= 10.0;
+			} else if (ship.selected->armor > 0.0) {
+				ship.selected->armor -= 10.0;
+			} else if (ship.selected->hull > 0.0) {
+				ship.selected->hull -= 10.0;
+			}
+
+			if(ship.selected->hull <= 0) {
+				enemy.remove(ship.selected);
+				delete ship.selected;
+				ship.selected = 0;
+				right_status_target->target = 0;
+			}
+		}
+	} else if (k == XK_2) {
+
+	} else if (k == XK_3) {
+
+	} else if (k == XK_4) {
+
+	} else if (k == XK_5) {
+
+	} else if (k == XK_6) {
+
+	} else if (k == XK_7) {
+
+	} else if (k == XK_8) {
+
+	} else if (k == XK_9) {
+
+	} else if (k == XK_0) {
+
 	}
 }
 

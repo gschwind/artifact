@@ -61,23 +61,23 @@ struct status_target {
 			glBegin(GL_QUADS);
 			glColor3d(0.0, 0.0, 1.0);
 			glVertex3d(width - 62.0, height - 19.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->shield / target->max_shield) * 99.0 + 62.0),
 					height - 19.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->shield / target->max_shield) * 99.0 + 62.0),
 					height - 26.0, 0.0);
 			glVertex3d(width - 62.0, height - 26.0, 0.0);
 			glColor3d(0.0, 1.0, 0.0);
 			glVertex3d(width - 62.0, height - 29.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->armor / target->max_armor) * 99.0 + 62.0),
 					height - 29.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->armor / target->max_armor) * 99.0 + 62.0),
 					height - 37.0, 0.0);
 			glVertex3d(width - 62.0, height - 37.0, 0.0);
 			glColor3d(1.0, 1.0, 0.0);
 			glVertex3d(width - 62.0, height - 40.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->hull / target->max_hull) * 99.0 + 62.0),
 					height - 40.0, 0.0);
-			glVertex3d(width - ((shield / max_shield) * 99.0 + 62.0),
+			glVertex3d(width - ((target->hull / target->max_hull) * 99.0 + 62.0),
 					height - 48.0, 0.0);
 			glVertex3d(width - 62.0, height - 48.0, 0.0);
 			glEnd();

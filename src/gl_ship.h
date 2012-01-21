@@ -45,6 +45,14 @@ struct ship_t {
 	double orientation;
 	GLuint texture;
 
+	double max_shield;
+	double max_armor;
+	double max_hull;
+
+	double shield;
+	double armor;
+	double hull;
+
 	std::string name;
 
 	bool is_selected;
@@ -53,6 +61,14 @@ struct ship_t {
 			x(x), y(y), orientation(orientation) {
 		is_selected = false;
 		this->name = name;
+
+		max_shield = 100.0;
+		max_armor = 100.0;
+		max_hull = 100.0;
+
+		shield = 100.0;
+		armor = 100.0;
+		hull = 100.0;
 	}
 
 	void render() {

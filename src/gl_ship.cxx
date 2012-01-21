@@ -19,6 +19,7 @@
 
 #include "GL/gl.h"
 #include <cmath>
+#include "global.h"
 #include "gl_utils.h"
 #include "gl_ship.h"
 
@@ -46,7 +47,7 @@ void ship_t::render(double elapsed_time) {
 	glTranslated(x, y, 0.0);
 	glPushMatrix();
 	glTranslated(0.0, 10.0, 0.0);
-//		glRotated(ship.orientation, 0.0, 0.0, 1.0);
+	glRotated(global.ship.orientation, 0.0, 0.0, 1.0);
 	font->print2(name.c_str());
 	glPopMatrix();
 

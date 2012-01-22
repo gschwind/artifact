@@ -41,6 +41,7 @@
 #include "ui_player_status.h"
 #include "ui_target_status.h"
 #include "gl_shoot_anim.h"
+#include "gl_cast_bar.h"
 
 Display * dpy;
 Window root;
@@ -106,25 +107,35 @@ void keyrelease(XKeyEvent * ev) {
 		global.ship.move_right = false;
 	} else if (k == XK_1) {
 		if (global.ship.selected) {
-			if (global.ship.selected->shield > 0.0) {
-				global.ship.selected->shield -= 10.0;
-			} else if (global.ship.selected->armor > 0.0) {
-				global.ship.selected->armor -= 10.0;
-			} else if (global.ship.selected->hull > 0.0) {
-				global.ship.selected->hull -= 10.0;
+
+			if (global.ship.casting == 0) {
+				global.ship.casting = new gl::cast_bar(1.0, global.ship.x,
+						global.ship.y, global.ship.selected->x,
+						global.ship.selected->y, global.ship.selected);
 			}
 
-			global.world.push_back(
-					new gl::shoot_anim_t(global.ship.x, global.ship.y,
-							global.ship.selected->x, global.ship.selected->y));
+//			if (global.ship.selected->shield > 0.0) {
+//				global.ship.selected->shield -= 10.0;
+//			} else if (global.ship.selected->armor > 0.0) {
+//				global.ship.selected->armor -= 10.0;
+//			} else if (global.ship.selected->hull > 0.0) {
+//				global.ship.selected->hull -= 10.0;
+//			}
+//
+//			global.world.push_back(
+//					new gl::shoot_anim_t(global.ship.x, global.ship.y,
+//							global.ship.selected->x, global.ship.selected->y));
+//
+//			if (global.ship.selected->hull <= 0) {
+//				global.world.remove(global.ship.selected);
+//				global.enemy.remove(global.ship.selected);
+//				delete global.ship.selected;
+//				global.ship.selected = 0;
+//				global.right_status_target->target = 0;
+//			}
 
-			if (global.ship.selected->hull <= 0) {
-				global.world.remove(global.ship.selected);
-				global.enemy.remove(global.ship.selected);
-				delete global.ship.selected;
-				global.ship.selected = 0;
-				global.right_status_target->target = 0;
-			}
+
+
 		}
 	} else if (k == XK_2) {
 
@@ -166,6 +177,11 @@ void keyrelease(XKeyEvent * ev) {
 			++iter_x;
 		}
 
+		if(global.ship.casting) {
+			delete global.ship.casting;
+			global.ship.casting = 0;
+		}
+
 		global.ship.selected = 0;
 		global.right_status_target->target = 0;
 		//printf("i: %f\n", min_d);
@@ -174,6 +190,13 @@ void keyrelease(XKeyEvent * ev) {
 			i->is_selected = true;
 			global.ship.selected = i;
 			global.right_status_target->target = i;
+		}
+
+	} else if (k == XK_space) {
+
+		if(global.ship.casting) {
+			delete global.ship.casting;
+			global.ship.casting = 0;
 		}
 
 	}
@@ -245,6 +268,11 @@ void buttonrelease(XButtonEvent & ev) {
 				}
 				(*iter_x)->is_selected = false;
 				++iter_x;
+			}
+
+			if(global.ship.casting) {
+				delete global.ship.casting;
+				global.ship.casting = 0;
 			}
 
 			global.ship.selected = 0;
@@ -459,6 +487,21 @@ void render() {
 	glTranslated(450.0, 100.0, 0.0);
 	global.right_status_target->render();
 	glPopMatrix();
+
+	if (global.ship.casting) {
+		glPushMatrix();
+		glTranslated(350.0, 70.0, 0.0);
+		global.ship.casting->render(elapsed_time);
+		glPopMatrix();
+
+		if(global.ship.casting->need_destroy()) {
+			delete global.ship.casting;
+			global.ship.casting = 0;
+		}
+
+	}
+
+
 
 }
 

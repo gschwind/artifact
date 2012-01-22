@@ -21,6 +21,7 @@
 #define GL_MAIN_SHIP_H_
 
 #include "gl_ship.h"
+#include "gl_cast_bar.h"
 
 namespace gl {
 
@@ -63,12 +64,15 @@ struct main_ship_t {
 		right_click = false;
 		left_click = false;
 		texture = 0;
+		casting = 0;
 	}
 
 	double foox, fooy;
 	long long int foos;
 
 	gl::ship_t * selected;
+
+	gl::cast_bar * casting;
 
 };
 

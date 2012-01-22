@@ -49,7 +49,6 @@ void status_player::render() {
 	glDisable(GL_BLEND);
 
 	glBegin(GL_QUADS);
-
 	glColor3d(0.0, 0.0, 1.0);
 	glVertex3d(62.0, height - 19.0, 0.0);
 	glVertex3d((shield / max_shield) * 99.0 + 62.0, height - 19.0, 0.0);

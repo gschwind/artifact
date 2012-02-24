@@ -1,5 +1,5 @@
 /*
- * Copyright 2010 Benoit Gschwind <gschwind@gnu-log.net>
+ * Copyright 2012 Benoit Gschwind <gschwind@gnu-log.net>
  *
  * This file is part of artifact.
  *
@@ -17,33 +17,22 @@
  * along with artifact.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
-#ifndef GL_CAST_BAR_H_
-#define GL_CAST_BAR_H_
+#ifndef GL_SHOOT_ANIM_BULLET1_H_
+#define GL_SHOOT_ANIM_BULLET1_H_
 
 #include "gl_renderable.h"
-#include "gl_ship.h"
 
 namespace gl {
 
-struct cast_bar : public renderable_i {
-	static unsigned int const height = 17;
-	static unsigned int const width = 135;
-
-	static GLuint texture;
+struct shoot_anim_bullet1_t: public renderable_i {
+	static GLint texture;
 	double time_left;
-	double cast_time;
-
-	ship_t * target;
-	renderable_i * spell;
-
-	cast_bar(double cast_time, ship_t * target, renderable_i * spell);
+	double x0, x1, y0, y1;
+	shoot_anim_bullet1_t(double x0, double y0, double x1, double y1);
 	void render(double elapsed_time);
 	bool need_destroy();
-
 };
 
 }
 
-
-#endif /* GL_CAST_BAR_H_ */
+#endif /* GL_SHOOT_ANIM_H_ */

@@ -28,15 +28,12 @@ namespace gl {
 
 GLuint cast_bar::texture = 0;
 
-cast_bar::cast_bar(double cast_time, double x0, double y0, double x1, double y1, ship_t * target) {
-	this->x0 = x0;
-	this->y0 = y0;
-	this->x1 = x1;
-	this->y1 = y1;
+cast_bar::cast_bar(double cast_time, ship_t * target, renderable_i * spell) {
 	time_left = cast_time;
 	this->cast_time = cast_time;
 	texture = gl_utils::load_texture("data/cast_bar.png");
 	this->target = target;
+	this->spell = spell;
 }
 
 void cast_bar::render(double elapsed_time) {
@@ -75,9 +72,7 @@ void cast_bar::render(double elapsed_time) {
 			target->hull -= 10.0;
 		}
 
-		global.world.push_back(
-				new shoot_anim_t(global.ship.x, global.ship.y,
-						target->x, target->y));
+		global.world.push_back(spell);
 
 		if (target->hull <= 0) {
 			global.world.remove(target);

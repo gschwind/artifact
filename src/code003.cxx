@@ -29,7 +29,7 @@
 #include <list>
 
 #include <sys/types.h>
-#include <time.h>
+#include <ctime>
 
 #include "global.h"
 #include "gl_main_ship.h"
@@ -40,7 +40,9 @@
 #include "ui_toolbar.h"
 #include "ui_player_status.h"
 #include "ui_target_status.h"
+#include "gl_renderable.h"
 #include "gl_shoot_anim.h"
+#include "gl_shoot_anim_bullet1.h"
 #include "gl_cast_bar.h"
 
 Display * dpy;
@@ -109,9 +111,12 @@ void keyrelease(XKeyEvent * ev) {
 		if (global.ship.selected) {
 
 			if (global.ship.casting == 0) {
-				global.ship.casting = new gl::cast_bar(1.0, global.ship.x,
+
+				gl::renderable_i * spell = new gl::shoot_anim_t(global.ship.x,
 						global.ship.y, global.ship.selected->x,
-						global.ship.selected->y, global.ship.selected);
+						global.ship.selected->y);
+				global.ship.casting = new gl::cast_bar(1.0,
+						global.ship.selected, spell);
 			}
 
 //			if (global.ship.selected->shield > 0.0) {
@@ -134,11 +139,40 @@ void keyrelease(XKeyEvent * ev) {
 //				global.right_status_target->target = 0;
 //			}
 
-
-
 		}
 	} else if (k == XK_2) {
+		if (global.ship.selected) {
 
+			if (global.ship.casting == 0) {
+				global.ship.casting = new gl::cast_bar(
+						0.3,
+						global.ship.selected,
+						new gl::shoot_anim_bullet1_t(global.ship.x, global.ship.y,
+								global.ship.selected->x,
+								global.ship.selected->y));
+			}
+
+//			if (global.ship.selected->shield > 0.0) {
+//				global.ship.selected->shield -= 10.0;
+//			} else if (global.ship.selected->armor > 0.0) {
+//				global.ship.selected->armor -= 10.0;
+//			} else if (global.ship.selected->hull > 0.0) {
+//				global.ship.selected->hull -= 10.0;
+//			}
+//
+//			global.world.push_back(
+//					new gl::shoot_anim_t(global.ship.x, global.ship.y,
+//							global.ship.selected->x, global.ship.selected->y));
+//
+//			if (global.ship.selected->hull <= 0) {
+//				global.world.remove(global.ship.selected);
+//				global.enemy.remove(global.ship.selected);
+//				delete global.ship.selected;
+//				global.ship.selected = 0;
+//				global.right_status_target->target = 0;
+//			}
+
+		}
 	} else if (k == XK_3) {
 
 	} else if (k == XK_4) {
@@ -177,7 +211,7 @@ void keyrelease(XKeyEvent * ev) {
 			++iter_x;
 		}
 
-		if(global.ship.casting) {
+		if (global.ship.casting) {
 			delete global.ship.casting;
 			global.ship.casting = 0;
 		}
@@ -194,7 +228,7 @@ void keyrelease(XKeyEvent * ev) {
 
 	} else if (k == XK_space) {
 
-		if(global.ship.casting) {
+		if (global.ship.casting) {
 			delete global.ship.casting;
 			global.ship.casting = 0;
 		}
@@ -270,7 +304,7 @@ void buttonrelease(XButtonEvent & ev) {
 				++iter_x;
 			}
 
-			if(global.ship.casting) {
+			if (global.ship.casting) {
 				delete global.ship.casting;
 				global.ship.casting = 0;
 			}
@@ -494,18 +528,16 @@ void render() {
 		global.ship.casting->render(elapsed_time);
 		glPopMatrix();
 
-		if(global.ship.casting->need_destroy()) {
+		if (global.ship.casting->need_destroy()) {
 			delete global.ship.casting;
 			global.ship.casting = 0;
 		}
 
 	}
 
-
-
 }
 
-#define MyEventMask (ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask)
+#define MyEventMask (ExposureMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask)
 
 int main(int argc, char *argv[]) {
 
@@ -610,6 +642,8 @@ int main(int argc, char *argv[]) {
 				buttonrelease(xev.xbutton);
 			} else if (xev.type == MotionNotify) {
 				motionnotify(xev.xmotion);
+			} else if (xev.type == ConfigureNotify) {
+				glViewport(0, 0, xev.xconfigure.width, xev.xconfigure.height);
 			}
 		}
 
